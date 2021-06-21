@@ -1,0 +1,23 @@
+{
+  "name": "upload_file",
+  "version": "1.0.0",
+  "description": "- upload-sdk 放置处理文件的逻辑 - example 一个例子 - vue-upload Vue框架封装的组件",
+  "main": "test.js",
+  "directories": {
+    "example": "example"
+  },
+  "dependencies": {
+    "install": "^0.13.0",
+    "koa-body": "^4.2.0",
+    "npm": "^7.15.0"
+  },
+  "devDependencies": {
+    "lerna": "^4.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
