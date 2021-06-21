@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <h1>upload file</h1>
+  <input type="file" id="upload" multiple />
+  <button id="pause">暂停</button>
+  <!-- 前端使用spark-md5来根据文件内容生成hash -->
+  <script src="./spark-md5.min.js"></script>
+  <script src="./upload.js"></script>
+  <script>
+
+    const xhrArr = [] // 用于断点续传的数组
+    const btnPause = document.querySelector('#pause')
+    btnPause.addEventListener('click', e => {
+      const isPause = btnPause.innerHTML === '暂停'
+      btnPause.innerHTML = isPause ? '继续' : '暂停'
+
+      if (isPause) pauseUpload()
+      else restartUpload()
+    })
+
+    function pauseUpload() {
+      xhrArr.forEach(xhr => {
+        xhr.abort()
+      })
+    }
+    function restartUpload() {
+
+    }
+
+    const upload = document.querySelector('#upload')
+    upload.addEventListener('input', e => {
+
+      // 获取文件
+      const files = e.target.files
+      console.log('files => ', files);
+
+      // ⚠️⚠️⚠️多文件上传则调多次接口
+      Array.from(files).forEach(ff => {
+        createFileChunk(ff).then(res => {
+          const { filename, chunkList, hash } = res
+          // console.log('filename ', filename);
+          // console.log('chunk ', chunkList);
+          // console.log('hash ', hash); 
+          const suffix = filename.substr(filename.lastIndexOf('.'))
+
+          // 先判断文件是否已经上传
+          verifyUpload({ hash, suffix }).then(res => {
+            res = JSON.parse(res)
+            // console.log('verifyUpload ', res);
+            if (res.isFinished) {
+              // 文件已经上传完成，不需要再调上传接口
+            } else {
+              // 文件还没上传完，需要根据chunk 来计算出仍未上传的chunk
+              const chunkSaved = res.chunk || []
+
+              // TODO 
+              // 如果发送失败，则重新发送
+              let finishSum = 0 // 请求完成的数量
+              let err = [] // 记录发送失败的chunk
+              const length = chunkList.length // chunk的个数
+
+              chunkList.forEach(chunk => {
+                // 如果已经有了就跳过
+                if(chunkSaved.includes(chunk.index)) return
+
+                const formData = new FormData()
+                formData.set('suffix', suffix)
+                formData.set('hash', hash)
+                formData.set('filename', filename)
+                formData.set('data', chunk.data)
+                formData.set('index', chunk.index)
+                formData.set('length', length) // 每次都把chunk的个数传给接口 用于判断
+
+                ajax({
+                  method: 'POST',
+                  url: 'http://localhost:3000/upload',
+                  data: formData,
+                  onprogress(e) {
+                    // e: ProgressEvent
+                    // event.total是需要传输的总字节，
+                    // event.loaded是已经传输的字节。
+                    // 如果event.lengthComputable不为真，则event.total等于0
+
+                    // TODO 上传进度  分片进度、总进度
+                    console.log(e.loaded, e.total, e.loaded / e.total);
+                    console.log('progress ', e);
+                  }
+                }).then(res => {
+                  // console.log('upload res', res);
+                  // console.log('upload res.body ', res.body);
+                  // fetch中 res.body 是一个可读字节流，ReadableStream类型
+                  // res.body.getReader() 用于读取响应的原始字节流，该字节流是可以循环读取的，直至body内容传输完成，ReadableStreamDefaultReader类型
+
+                  // ⚠️ 注意 fetch中 res.body.getReader 调用后 ReadableStream 将会被locked，需要释放才能再一次调用
+                  // console.log('upload res.body.getReader() ', res.body.getReader());
+                  // const reader = res.body.getReader();
+                  // let bytes = 0
+                  // const stream = new ReadableStream({
+                  //   start(controller) {
+                  //     // 下面的函数处理每个数据块
+                  //     function push() {
+                  //       // "done"是一个布尔型，"value"是一个Uint8Array
+                  //       reader.read().then(({ done, value }) => {
+                  //         // 判断是否还有可读的数据？
+                  //         if (done) {
+                  //           // 告诉浏览器已经结束数据发送
+                  //           controller.close();
+                  //           return;
+                  //         }
+                  //         // 取得数据并将它通过controller发送给浏览器
+                  //         controller.enqueue(value);
+                  //         bytes = value.byteLength
+                  //         let valueToString = ''
+                  //         value.forEach(i => {
+                  //           valueToString += String.fromCharCode(i)
+                  //         })
+                  //         console.log(value, ' to String => ', valueToString);
+                  //         console.log('length = ', bytes, ', string.length = ', valueToString.length);
+                  //         push();
+                  //       });
+                  //     };
+                  //     push();
+                  //   }
+                  // });
+                  console.log('res', res);
+                }).catch(err => {
+                  console.log('upload err ', err);
+                  err[chunk.index] = chunk.data
+                }).finally(() => {
+                  if (finishSum === length) {
+                  }
+                })
+              })
+            }
+          }).catch(err => {
+            console.log('verifyUpload ', err);
+          })
+        })
+      })
+    })
+
+    // chunkSize 单位是MB   1MB = 1024KB = 1024B
+    function createFileChunk(file, chunkSize = 1.5) {
+      const reader = new FileReader()
+
+      reader.onloadstart = () => { console.log(`开始读取: ${file.name}`); }
+      reader.onprogress = () => { console.log(`正在读取: ${file.name}`); }
+      reader.onerror = () => { console.log(`读取失败: ${file.name}`); }
+      reader.onloadend = () => { console.log(`读取结束: ${file.name}`); }
+
+      // spark 是文件名跟文件内容的hash
+      // 因为文件名可能相同但是文件内容不同，也可能是文件名不同但文件内容相同
+      // 这两种情况都应该当作是一个新的文件
+      const spark = new SparkMD5.ArrayBuffer()
+      spark.append(file.name)
+      const ret = {
+        filename: file.name,
+        chunkList: [],
+        hash: ''
+      }
+      return new Promise(res => {
+        reader.onload = () => {
+          console.log(`读取成功: ${file.name}`);
+
+          const aryBuffer = reader.result
+          const byteLength = aryBuffer.byteLength
+          const step = chunkSize * 1024 * 1024
+          for (let i = 0, idx = 0; i < byteLength; i += step, ++idx) {
+            spark.append(aryBuffer.slice(i, i + step))
+            ret.chunkList.push({
+              index: idx,
+              data: new Blob([aryBuffer.slice(i, i + step)], { type: 'text/plain,charset=UTF-8' }) // ajax可以传输Blob
+            })
+            // console.log('new Uint8Array ', new Uint8Array(aryBuffer.slice(i, i + step)));
+          }
+          // console.log('aryBuffer = ', aryBuffer);
+          // console.log('aryBuffer.byteLength = ', aryBuffer.byteLength);
+          ret.hash = spark.end()
+          console.log('ret ', ret);
+          res(ret)
+        }
+        reader.readAsArrayBuffer(file)
+      })
+    }
+
+    function ajax(opt) {
+      /**
+       *  
+          fetch 的 data 参数可以提供以下字段:  
+          body: JSON.stringify(data), // must match 'Content-Type' header
+          cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
+          credentials: 'same-origin', // include, same-origin, *omit
+          headers: {
+            'user-agent': 'Mozilla/4.0 MDN Example',
+            'content-type': 'application/json'
+          },
+          method: 'POST', // *GET, POST, PUT, DELETE, etc.
+          mode: 'cors', // no-cors, cors, *same-origin
+          redirect: 'follow', // manual, *follow, error
+          referrer: 'no-referrer', // *client, no-referrer
+       */
+
+      // fetch不支持进度，因此改用 xhr
+      // return fetch('http://localhost:3000/upload', {
+      //   method: 'POST',
+      //   ...data
+      // })
+
+      return new Promise((res, rej) => {
+        const xhr = new XMLHttpRequest()
+        xhrArr.push(xhr)
+
+        xhr.onreadystatechange = () => {
+          if (xhr.status === 200 && xhr.readyState === 4) {
+            res(xhr.response)
+          }
+        }
+        xhr.upload.onprogress = opt.onprogress || (() => { })
+        xhr.open(opt.method, opt.url, true)
+        // console.log('data ', opt.data);
+        xhr.send(opt.data)
+      })
+    }
+
+    function verifyUpload(data) {
+      let query = Object.entries(data).map(([k, v]) => `${k}=${v}`).join('&')
+      return ajax({
+        method: 'GET',
+        url: `http://localhost:3000/upload/verify?${query}`,
+      })
+    }
+
+  </script>
+</body>
+
+</html>
