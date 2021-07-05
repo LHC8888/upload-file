@@ -1,17 +1,20 @@
 {
   "name": "upload-sdk",
   "version": "1.0.0",
+  "main": "dist/UploadImage.js",
   "description": "",
-  "main": "rollup.config.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "rollup --config -w"
+    "dev": "rollup --config",
+    "watch": "rollup --config -w"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@vue/compiler-sfc": "^3.0.3",
     "rollup": "^2.50.5",
+    "rollup-plugin-vue": "^6.0.0",
     "spark-md5": "^3.0.1"
   }
 }
