@@ -18,5 +18,9 @@
   },
   "scripts": {
     "test": "echo \"Error: run tests from root\" && exit 1"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@vue/cli": "^5.0.0-beta.2"
   }
 }
