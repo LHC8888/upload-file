@@ -10,6 +10,7 @@ export default [
       file: 'dist/upload.esm.js',
       format: 'esm'
     },
+    plugins: [ babel({ babelHelpers: 'bundled' })],
     watch: {
       include: 'src/**'
     }
