@@ -1,5 +1,7 @@
+// https://www.npmjs.com/package/@rollup/plugin-babel
 // https://github.com/vuejs/rollup-plugin-vue
 import VuePlugin from 'rollup-plugin-vue'
+import { babel } from '@rollup/plugin-babel';
 
 export default [
   {
@@ -19,7 +21,7 @@ export default [
       format: 'esm',
       sourcemap: 'inline'
     },
-    plugins: [VuePlugin()],
+    plugins: [VuePlugin(), babel({ babelHelpers: 'bundled' })],
     external: ['vue']
   }
 ]

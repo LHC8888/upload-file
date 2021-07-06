@@ -4,7 +4,7 @@
   "main": "dist/UploadImage.js",
   "description": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "../../node_modules/.bin/jest",
     "dev": "rollup --config",
     "watch": "rollup --config -w"
   },
@@ -15,5 +15,8 @@
     "@vue/compiler-sfc": "^3.0.3",
     "rollup": "^2.50.5",
     "rollup-plugin-vue": "^6.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-babel": "^5.3.0"
   }
 }
