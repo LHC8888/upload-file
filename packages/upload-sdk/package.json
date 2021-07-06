@@ -14,7 +14,6 @@
   "dependencies": {
     "@vue/compiler-sfc": "^3.0.3",
     "rollup": "^2.50.5",
-    "rollup-plugin-vue": "^6.0.0",
-    "spark-md5": "^3.0.1"
+    "rollup-plugin-vue": "^6.0.0"
   }
 }
