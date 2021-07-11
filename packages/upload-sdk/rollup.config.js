@@ -7,7 +7,7 @@ export default [
   {
     input: 'src/index.js',
     output: {
-      file: 'dist/upload.esm.js',
+      file: 'dist/upload-sdk.esm.js',
       format: 'esm'
     },
     plugins: [ babel({ babelHelpers: 'bundled' })],

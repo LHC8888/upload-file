@@ -1,13 +1,13 @@
 <template>
   <!-- <img alt="Vue logo" src="./assets/logo.png" /> -->
   <!-- <HelloWorld msg="Hello Vue 3.0 + Vite" /> -->
-  <UploadImage  :suffix='["jpg", "jpeg",  "gif"]'></UploadImage>
+  <UploadImage v-model="files" :action="action" multiple></UploadImage>
 </template>
 
 <script>
+import { ref } from "vue";
 import HelloWorld from "./components/HelloWorld.vue";
 import UploadImage from "../node_modules/upload-sdk/dist/UploadImage";
-import { checkFileFormat } from "../node_modules/upload-sdk/dist/upload.esm.js";
 
 export default {
   name: "App",
@@ -15,6 +15,17 @@ export default {
     HelloWorld,
     UploadImage,
   },
-  setup() {},
+  setup() {
+    const action = ref({
+      url: "http://localhost:3030",
+      keyName: "file",
+    });
+    const files = ref([])
+
+    return {
+      action,
+      files
+    };
+  },
 };
 </script>
