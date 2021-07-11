@@ -4,6 +4,8 @@ const logger = require('koa-logger')
 const Router = require('@koa/router');
 const koaBody = require('koa-body')
 const path = require('path')
+const cors = require('koa2-cors');
+
 const fs = require('fs')
 const { getDate } = require('./util')
 
@@ -20,6 +22,8 @@ const router = new Router();
    如何结合 Web Work 处理大文件上传
    如何实现秒传
  */
+
+app.use(cors());
 
 app.use(koaBody({
   multipart: true, // Parse multipart bodies
@@ -127,6 +131,6 @@ app.use(logger())
 app.use(router.routes())
 app.use(static(path.resolve(__dirname, '../client')))
 
-app.listen(3000, () => {
-  console.log('listen at http://localhost:3000');
+app.listen(3030, () => {
+  console.log('listen at http://localhost:3030');
 })
