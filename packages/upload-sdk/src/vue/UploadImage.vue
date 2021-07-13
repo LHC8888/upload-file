@@ -133,9 +133,10 @@ export default {
         if (compress && type && isImageType(type)) {
           return Promise.resolve(compressImage(file, useWorker));
         } else {
-          return file2Blob(file.origin).then((blob) => ({
+          return file2Blob(file.origin).then(({blob, arrayBuffer}) => ({
             ...file,
             blobCompressed: blob,
+            arrayBuffer
           }));
         }
       });
