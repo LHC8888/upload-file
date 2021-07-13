@@ -22,8 +22,12 @@ export function readFile(file: File): Promise<ArrayBuffer> {
   return new Promise(res => {
     const reader = new FileReader()
     reader.onload = () => {
-      const blob = new Blob([reader.result])
-      res(blob)
+      const arrayBuffer = reader.result
+      const blob = new Blob([arrayBuffer])
+      res({
+        blob,
+        arrayBuffer
+      })
     }
     reader.readAsArrayBuffer(file)
   })

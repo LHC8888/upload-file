@@ -9,8 +9,7 @@ export default function createFileChunk(file, chunkSize = 2): Array<Blob> {
   // spark 是文件名跟文件内容的hash
   // 因为文件名可能相同但是文件内容不同，也可能是文件名不同但文件内容相同
   // 这两种情况都应该当作是一个新的文件
-  const { name, blobCompressed } = file
-  const spark = new SparkMD5()
+  const { name, blobCompressed, arrayBuffer } = file
   const chunkList = []
   const ret = {}
 
@@ -18,12 +17,15 @@ export default function createFileChunk(file, chunkSize = 2): Array<Blob> {
   const step = chunkSize * 1024 * 1024
   for (let i = 0, idx = 0; i < byteLength; i += step, ++idx) {
     const curBlob = blobCompressed.slice(i, i + step)
-    spark.appendBinary(curBlob)
     chunkList.push({
       index: idx,
       data: curBlob // ajax可以传输Blob
     })
   }
+
+  const spark = new SparkMD5.ArrayBuffer()
+  spark.append(arrayBuffer)
+  
   ret.hash = spark.end()
   ret.chunkList = chunkList
 

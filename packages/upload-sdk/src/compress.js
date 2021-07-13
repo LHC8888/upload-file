@@ -47,11 +47,12 @@ function workerCompressTask(file: File) {
         const { type, blob } = msg.data
         // console.log('msg ', msg);
         if (type === 'compress') {
-          const ratio = blob.size / fileBlob.size
+          const ratio = blob.size / fileBlob.blob.size
           const imageResolved = {
             ...file,
             blobCompressed: blob,
-            ratio
+            ratio,
+            arrayBuffer: fileBlob.arrayBuffer
           }
           res(imageResolved)
         }
@@ -60,7 +61,7 @@ function workerCompressTask(file: File) {
       // worker 不能向worker中传递File，会报错 Uncaught DOMException: Failed to execute 'postMessage' on 'Worker': #<Object> could not be cloned.
       worker.postMessage({
         type: 'compress',
-        blob: fileBlob,
+        blob: fileBlob.blob,
         mimeType: file.type
       })
     })
@@ -69,7 +70,7 @@ function workerCompressTask(file: File) {
 
 export function compressTask(file: File) {
   return readFile(file.origin).then(fileBlob => {
-    return window.createImageBitmap(fileBlob).then(imageBitmap => {
+    return window.createImageBitmap(fileBlob.blob).then(imageBitmap => {
       const { width, height } = imageBitmap
       const canvas = document.createElement('canvas')
       canvas.setAttribute('width', width)
@@ -80,11 +81,12 @@ export function compressTask(file: File) {
       return new Promise(res => {
         const quality = Math.max(0.92, 0.1)
         canvas.toBlob(function (blob) {
-          const ratio = blob.size / fileBlob.size
+          const ratio = blob.size / fileBlob.blob.size
           const imageResolved = {
             ...file,
             blobCompressed: blob,
-            ratio
+            ratio,
+            arrayBuffer: fileBlob.arrayBuffer
           }
           res(imageResolved)
         }, file.mimeType, quality)
