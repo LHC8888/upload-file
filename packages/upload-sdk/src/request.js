@@ -14,3 +14,13 @@ export default function request({ method, data, url, onprogress }) {
     xhr.send(data)
   })
 }
+
+export function verifyUpload({ url, data }) {
+  let query = Object.entries(data)
+    .map(([k, v]) => `${k}=${v}`)
+    .join("&");
+  return request({
+    method: "GET",
+    url: `${url}?${query}`
+  });
+}

@@ -15,13 +15,7 @@ export function isImageType(mimeType: string): boolean {
  * @param {File} file 文件对象
  */
 export function file2Blob(file: File): Promise {
-  return new Promise(res => {
-    const reader = new FileReader()
-    reader.onload = function () {
-      res(new Blob(reader.result))
-    }
-    reader.readAsArrayBuffer(file)
-  })
+  return readFile(file)
 }
 
 export function readFile(file: File): Promise<ArrayBuffer> {
@@ -33,4 +27,11 @@ export function readFile(file: File): Promise<ArrayBuffer> {
     }
     reader.readAsArrayBuffer(file)
   })
+}
+
+// 文件状态
+export const FILE_STATUS = {
+  UPLOADING: 'uploading',
+  UPLOAD_SUCCESS: 'upload_successs',
+  UPLOAD_ERROR: 'upload_error'
 }

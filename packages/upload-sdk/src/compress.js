@@ -26,9 +26,9 @@ import compressWorker from './compressWorker'
 
 const supportWorker = !!(window.Worker && window.createImageBitmap && window.OffscreenCanvas)
 
-export function compressImage(file: File): Promise<File> {
+export function compressImage(file: File, useWorker: Boolean): Promise<File> {
 
-  if (0 && supportWorker) {
+  if (useWorker && supportWorker) {
     return workerCompressTask(file)
   }
 
@@ -50,7 +50,7 @@ function workerCompressTask(file: File) {
           const ratio = blob.size / fileBlob.size
           const imageResolved = {
             ...file,
-            compressed: blob,
+            blobCompressed: blob,
             ratio
           }
           res(imageResolved)
@@ -83,7 +83,7 @@ export function compressTask(file: File) {
           const ratio = blob.size / fileBlob.size
           const imageResolved = {
             ...file,
-            compressed: blob,
+            blobCompressed: blob,
             ratio
           }
           res(imageResolved)
