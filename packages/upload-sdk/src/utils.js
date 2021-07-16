@@ -36,6 +36,6 @@ export function readFile(file: File): Promise<ArrayBuffer> {
 // 文件状态
 export const FILE_STATUS = {
   UPLOADING: 'uploading',
-  UPLOAD_SUCCESS: 'upload_successs',
-  UPLOAD_ERROR: 'upload_error'
+  UPLOAD_SUCCESS: 'success',
+  UPLOAD_ERROR: 'error'
 }
