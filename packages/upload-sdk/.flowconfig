@@ -1,6 +1,8 @@
+# 默认情况下 .flowconfig 所在的目录被当作是flow的根目录
 [ignore]
 
 [include]
+./src/*.js
 
 [libs]
 
