@@ -1,14 +1,16 @@
 <template>
-  <!-- <img alt="Vue logo" src="./assets/logo.png" /> -->
-  <!-- <HelloWorld msg="Hello Vue 3.0 + Vite" /> -->
   <UploadImage
     v-model="files"
     :action="action"
     multiple
+    :beforeUpload="beforeUpload"
     :onProgress="onProgress"
     :onSuccess="onSuccess"
     :onError="onError"
   ></UploadImage>
+  <div class="preview">
+    <div class="cell" v-for="item in files" :style="{ backgroundImage: `url(${item.previewUrl || ''})` }"></div>
+  </div>
 </template>
 
 <script>
@@ -29,11 +31,22 @@ export default {
     });
     const files = ref([]);
 
+    const beforeUpload = (fileList) => {
+      console.log(fileList.length + files.value.length);
+      const max = 3
+      if(fileList.length + files.value.length > max) {
+        console.log(`图片不能超过${max}张`);
+        return 
+      }
+
+      return Promise.resolve()
+    }
     const onProgress = (file, progress) => {
       console.log("onProgress ", file, progress);
     };
     const onSuccess = (file, res) => {
       console.log("onSuccess", file, res);
+      console.log("files = ", files.value);
     };
     const onError = (file, err) => {
       console.log("onError", file, err);
@@ -42,6 +55,7 @@ export default {
     return {
       action,
       files,
+      beforeUpload,
       onProgress,
       onSuccess,
       onError,
@@ -49,3 +63,20 @@ export default {
   },
 };
 </script>
+
+<style>
+.preview {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 80px 80px 80px;
+  grid-template-rows: 80px 80px 80px;
+  grid-row-gap: 20px;
+  grid-column-gap: 20px;
+}
+.cell {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+
+</style>

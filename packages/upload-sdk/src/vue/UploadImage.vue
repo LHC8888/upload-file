@@ -8,17 +8,24 @@ import createFileChunk from "../createFileChunk";
 
 export default {
   props: {
-    value: {
+    modelValue: {
       type: Array,
       default() {
         return [];
       },
     },
     multiple: {
+      // 是否可以上传多张
       type: Boolean,
       default: false,
     },
+    limit: {
+      // 限制上传个数
+      type: [String, Number],
+      default: 9,
+    },
     beforeUpload: {
+      // 上传前触发
       type: Function,
       default() {
         return function (files) {
@@ -27,30 +34,35 @@ export default {
       },
     },
     onProgress: {
+      // 上传中触发
       type: Function,
       default() {
         return () => {};
       },
     },
     onSuccess: {
+      // 上传成功
       type: Function,
       default() {
         return () => {};
       },
     },
     onError: {
+      // 上传失败
       type: Function,
       default() {
         return () => {};
       },
     },
     action: {
+      // 上传接口的参数
       // Object{ url: 服务器路径, keyName：文件字段名 }
       type: Object,
       required: true,
     },
     compress: {
       // 是否进行压缩
+
       type: Boolean,
       default: true,
     },
@@ -59,7 +71,7 @@ export default {
     // 单文件也统一当作数组进行处理
     const fileList = ref([]);
     const inputFile = ref(null);
-    const { beforeUpload, compress, action, onProgress, onSuccess, onError } =
+    const { beforeUpload, compress, limit, action, onProgress, onSuccess, onError } =
       props;
     const { emit } = ctx;
 
@@ -70,13 +82,7 @@ export default {
         const filename = file.name;
         const suffix = filename.substr(filename.lastIndexOf("."));
         const { hash, chunkList } = createFileChunk(file);
-        // console.log("chunks", hash, chunkList);
-
-        // const oriSize = file.blobCompressed.size;
-        // const chunkSumSize = chunkList.reduce((s, i) => (s += i.data.size), 0);
-        // console.log("原来的文件需要进行上传的大小: ", oriSize);
-        // console.log("分块后，chunk大小之和：", chunkSumSize);
-        // console.log("相等否：", oriSize === chunkSumSize);
+        const totalSize = file.blobCompressed.size;
 
         verifyUpload({
           url: `${action.url}/upload/verify`,
@@ -86,6 +92,7 @@ export default {
             res = JSON.parse(res);
             if (!res.isFinished) {
               const chunkSaved = res.chunk || [];
+              const chunkUploadTask = [];
               chunkList.forEach((chunk) => {
                 if (chunkSaved.includes(chunk.index)) return;
 
@@ -98,59 +105,80 @@ export default {
                 formData.set("length", chunkList.length); // 每次都把chunk的个数传给接口 用于判断
 
                 // TODO 限制同时请求的数量
-                request({
+                const uploadTask = request({
                   method: "POST",
                   url: `${action.url}/upload`,
                   data: formData,
                   onprogress(e) {
                     // TODO 所有文件的总进度（这个应该没啥必要，而且不好算）
-                    // 这里是单个文件的上传进度
+                    // 这里是单个chunk的上传进度
+                    const chunkSize = chunk.data.size;
                     const progress = e.loaded / e.total;
-                    onProgress(file, progress);
+                    const chunkProgress = (chunkSize / totalSize) * progress;
+                    file.uploadProgress = file.uploadProgress
+                      ? file.uploadProgress + chunkProgress
+                      : 0;
+                    onProgress(file);
                   },
-                })
-                  .then((res) => onSuccess(file, res))
-                  .catch((err) => onError(file, err));
+                });
+
+                chunkUploadTask.push(uploadTask);
               });
+
+              Promise.all(chunkUploadTask)
+                .then((res) => {
+                  file.status = FILE_STATUS.UPLOAD_SUCCESS;
+                  onSuccess(file, res);
+                })
+                .catch((err) => {
+                  file.status = FILE_STATUS.UPLOAD_ERROR;
+                  onError(file, err);
+                });
             } else {
-              // 妙传进度直接置为1
+              // 秒传进度直接置为1
+              file.status = FILE_STATUS.UPLOAD_SUCCESS;
               onProgress(file, 1);
               onSuccess(file, res);
             }
           })
           .catch((err) => {
-            onError(err);
+            file.status = FILE_STATUS.UPLOAD_ERROR;
+            onError(file, err);
+          })
+          .finally(() => {
+            emit("update:modelValue", fileList.value);
           });
       });
     };
 
-    const processFiles = (files) => {
-      const length = files.length;
+    const processFiles = (filesToUpload) => {
+      const length = filesToUpload.length;
       const useWorker = length > 1; // 同时上传多个文件时再用worker
-      const task = Array.from(files).map((file) => {
+      const task = Array.from(filesToUpload).map((file) => {
         const { type } = file;
         // 如果是图片则需要压缩
         if (compress && type && isImageType(type)) {
           return Promise.resolve(compressImage(file, useWorker));
         } else {
-          return file2Blob(file.origin).then(({blob, arrayBuffer}) => ({
+          return file2Blob(file.origin).then(({ blob, arrayBuffer }) => ({
             ...file,
             blobCompressed: blob,
-            arrayBuffer
+            arrayBuffer,
           }));
         }
       });
 
-      return Promise.all(task).then((files) => {
-        console.log("files to Upload", files);
-        fileList.value = files.map((file, index) => {
+      return Promise.all(task).then((filesToUpload) => {
+        filesToUpload.forEach(file => {
+          const idx = file.index
           // TODO 非图片的使用其他方式显示文件
           const previewUrl = URL.createObjectURL(file.blobCompressed);
-          return {
+          fileList.value[idx] = {
             ...file,
             previewUrl,
-          };
+          }
         });
+        emit("update:modelValue", fileList.value);
         // 上传接口的调用必须耦合在组件里面，因为组件需要上传进度，否则，如果请求逻辑写在外头，那么后面会有许多重复的请求逻辑
         uploadFiles();
       });
@@ -160,8 +188,8 @@ export default {
     const handleChange = (e) => {
       const files = e.target.files;
 
-      fileList.value = Array.from(files).map((file, idx) => ({
-        index: idx,
+      const filesToUpload = Array.from(files).map((file, idx) => ({
+        index: fileList.value.length + idx,
         origin: file,
         type: file.type,
         lastModified: file.lastModified,
@@ -169,18 +197,24 @@ export default {
         name: file.name,
         status: FILE_STATUS.UPLOADING,
       }));
+      fileList.value = fileList.value.concat(filesToUpload);
 
       let p;
-      const before = beforeUpload(files);
+      const before = beforeUpload(filesToUpload);
       // TODO 完善 before 判断
       // 暂时只有 thenable 才可以进入校验失败的逻辑
       if (before && before.then) {
-        p = before;
+        p = before.then(() => {
+          return filesToUpload
+        });
+      } else if(before === undefined || before === false) {
+        p = Promise.reject()
       } else {
-        p = Promise.resolve(fileList.value);
+        p = Promise.resolve(filesToUpload);
       }
       p.then(
         (fileList) => {
+          emit("update:modelValue", fileList.value);
           processFiles(fileList);
         },
         (err) => {
@@ -214,7 +248,4 @@ export default {
     :multiple="multiple"
     @change="handleChange"
   />
-  <div v-for="item in fileList">
-    <img :src="item.previewUrl" alt="" width="140" height="140" />
-  </div>
 </template>

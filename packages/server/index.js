@@ -22,6 +22,7 @@ const router = new Router();
    如何结合 Web Work 处理大文件上传
    如何实现秒传
  */
+const host = 'http://localhost:3030'
 
 app.use(cors());
 
@@ -43,45 +44,46 @@ router.get('/sth', (ctx, next) => {
 router.post('/upload', (ctx, next) => {
   const { filename, index, length, hash, suffix } = ctx.request.body
 
-  const datedir = path.resolve(__dirname, `./file/${getDate()}`)
+  const datedir = path.resolve(__dirname, `./file`)
   if (!fs.existsSync(datedir)) fs.mkdirSync(datedir)
 
-  const dir = path.resolve(__dirname, `./file/${getDate()}/${hash}`)
+  const dir = path.resolve(datedir, `./${hash}`)
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
   }
 
   // 单文件上传
   // console.log('ctx.request.body ', ctx.request.body)
-  // console.log('ctx.request.body ', ctx.request.files)
+  // console.log('ctx.request.body ', ctx.request.files.data)
   const file = ctx.request.files.data
-  const filepath = path.resolve(__dirname, `./file/${getDate()}/${hash}`, `${hash}_${index}`)
+  const filepath = path.resolve(dir, `${hash}_${index}`)
   const rs = fs.createReadStream(file.path)
   const ws = fs.createWriteStream(filepath)
   rs.pipe(ws)
 
-  // 检查文件是否接收完毕
-  const fileListInDir = fs.readdirSync(path.resolve(__dirname, `./file/${getDate()}/${hash}`))
-  let sum = 0
-  fileListInDir.forEach(filename => {
-    if (filename.indexOf(filename) > -1) {
-      ++sum
+  rs.on('end', () => {
+    // 检查文件是否接收完毕
+    const fileListInDir = fs.readdirSync(dir)
+    let sum = 0
+    fileListInDir.forEach(filename => {
+      if (filename.indexOf(filename) > -1) {
+        ++sum
+      }
+    })
+
+    // 如果文件的所有chunk都接收到了 需要把chunk拼接起来
+    // ⚠️ 需要处理数据的编码类型
+    if (sum === Number(length)) {
+      const newFilePath = path.resolve(dir, `${hash}${suffix}`)
+      for (let i = 0; i < length; i++) {
+        const chunkPath = path.resolve(dir, `${hash}_${i}`)
+        const chunk = fs.readFileSync(chunkPath)
+        fs.writeFileSync(newFilePath, chunk, { flag: 'a' })
+        // 删除chunk文件
+        fs.rmSync(chunkPath)
+      }
     }
   })
-
-  // console.log(`sum=${sum}, length=${Number(length)}`);
-  // 如果文件的所有chunk都接收到了 需要把chunk拼接起来
-  // ⚠️ 需要处理数据的编码类型
-  if (sum === Number(length)) {
-    for (let i = 0; i < length; i++) {
-      const dataPath = path.resolve(__dirname, `./file/${getDate()}/${hash}`, `${hash}_${i}`)
-      const data = fs.readFileSync(dataPath)
-      fs.writeFileSync(path.resolve(__dirname, `./file/${getDate()}/${hash}`, `${hash}${suffix}`), data, { flag: 'a' })
-
-      // 删除chunk文件
-      fs.unlinkSync(dataPath)
-    }
-  }
 
   ctx.body = 'success!'
   next()
@@ -100,10 +102,12 @@ router.get('/upload/verify', (ctx, next) => {
   const { hash, suffix } = query
   const ret = {
     chunk: [],
-    isFinished: false
+    isFinished: false,
+    url: ''
   }
 
-  const dirpath = path.resolve(__dirname, `./file/${getDate()}`, `${hash}`)
+  const relativeFilePath = `file/${hash}`
+  const dirpath = path.resolve(__dirname, relativeFilePath)
   const filepath = path.resolve(dirpath, `${hash}${suffix}`)
 
   // 首先检查路径是否存在
@@ -111,13 +115,14 @@ router.get('/upload/verify', (ctx, next) => {
     // 如果已有完整的文件
     if (fs.existsSync(filepath)) {
       ret.isFinished = true
+      ret.url = `${host}/${relativeFilePath}/${hash}${suffix}`
     } else {
       ret.isFinished = false
       // 如果没有完整的文件则需要返回已上传切片的索引
       const filenames = fs.readdirSync(dirpath)
       filenames.forEach(name => {
         const spl = name.split('_')
-        if(spl.length === 2) {
+        if (spl.length === 2) {
           ret.chunk.push(Number(spl[1]))
         }
       })
@@ -129,8 +134,9 @@ router.get('/upload/verify', (ctx, next) => {
 
 app.use(logger())
 app.use(router.routes())
-app.use(static(path.resolve(__dirname, '../client')))
+// app.use(static(path.resolve(__dirname, '../client')))
+app.use(static(path.resolve(__dirname)))
 
 app.listen(3030, () => {
-  console.log('listen at http://localhost:3030');
+  console.log(`listen at ${host}`);
 })
