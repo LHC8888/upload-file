@@ -28,7 +28,7 @@ const formatMagicNumberMap = {
   [FILE_FORMAT.GIF]: ['47', '49', '46', '38']
 }
 
-export function checkFileFormatSingle(fileArrayBuffer: ArrayBuffer, format: string) {
+export function checkFileFormatSingle(fileArrayBuffer: ArrayBuffer, format: string): boolean {
   // https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/DataView
   // DataView 不需要考虑不同平台的字节序
   const dv = new DataView(fileArrayBuffer)

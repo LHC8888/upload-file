@@ -24,9 +24,27 @@
 import { readFile } from './utils'
 import compressWorker from './compressWorker'
 
+type FileToCompress = {
+  origin: File,
+  mimeType: string,
+  type: string
+}
+type FileCompressed = {
+  blobCompressed: Blob,
+  arrayBuffer: ArrayBuffer | null | string,
+  ratio: number
+}
+type MessageData = {
+  ...MessageEvent,
+  data: {
+    type: string,
+    blob: Blob
+  }
+}
+
 const supportWorker = !!(window.Worker && window.createImageBitmap && window.OffscreenCanvas)
 
-export function compressImage(file: File, useWorker: Boolean): Promise<File> {
+export function compressImage(file: FileToCompress, useWorker: Boolean): Promise<FileCompressed> {
 
   if (useWorker && supportWorker) {
     return workerCompressTask(file)
@@ -35,7 +53,7 @@ export function compressImage(file: File, useWorker: Boolean): Promise<File> {
   return compressTask(file)
 }
 
-function workerCompressTask(file: File) {
+export function workerCompressTask(file: FileToCompress): Promise<FileCompressed> {
   return readFile(file.origin).then(fileBlob => {
     return new Promise(res => {
       const workerBlob = new Blob([`(${compressWorker})()`], { type: 'application/javascript' })
@@ -43,18 +61,23 @@ function workerCompressTask(file: File) {
       const worker = new Worker(url)
       URL.revokeObjectURL(url)
 
-      worker.addEventListener('message', (msg) => {
-        const { type, blob } = msg.data
+      worker.addEventListener('message', (msg: MessageData) => {
         // console.log('msg ', msg);
-        if (type === 'compress') {
-          const ratio = blob.size / fileBlob.blob.size
-          const imageResolved = {
-            ...file,
-            blobCompressed: blob,
-            ratio,
-            arrayBuffer: fileBlob.arrayBuffer
+        const { data } = msg
+        if (data) {
+          const { type, blob } = data
+          if (typeof type === 'string') {
+            if (type === 'compress') {
+              const ratio = blob.size / fileBlob.blob.size
+              const imageResolved = {
+                ...file,
+                blobCompressed: blob,
+                ratio,
+                arrayBuffer: fileBlob.arrayBuffer
+              }
+              res(imageResolved)
+            }
           }
-          res(imageResolved)
         }
       })
 
@@ -68,7 +91,7 @@ function workerCompressTask(file: File) {
   })
 }
 
-export function compressTask(file: File) {
+export function compressTask(file: FileToCompress): Promise<FileCompressed> {
   return readFile(file.origin).then(fileBlob => {
     return window.createImageBitmap(fileBlob.blob).then(imageBitmap => {
       const { width, height } = imageBitmap
@@ -95,8 +118,8 @@ export function compressTask(file: File) {
   })
 }
 
-export function canvasCompress() {
+// export function canvasCompress() {
 
-}
+// }
 
-export function lubanCompress() { }
+// export function lubanCompress() { }

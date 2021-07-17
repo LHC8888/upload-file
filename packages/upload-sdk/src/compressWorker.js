@@ -12,6 +12,7 @@ export default function compressWorker(file: File) {
 
         const { width, height } = imageBitmap
 
+        //$FlowFixMe[cannot-resolve-name]
         const oc = new OffscreenCanvas(width, height)
         const ctx = oc.getContext('2d')
 
